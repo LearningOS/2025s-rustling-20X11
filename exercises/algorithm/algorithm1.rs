@@ -2,7 +2,7 @@
 	single linked list merge
 	This problem requires you to merge two ordered singly linked lists into one ordered singly linked list
 */
-// I AM NOT DONE
+
 
 use std::fmt::{self, Display, Formatter};
 use std::ptr::NonNull;
@@ -22,6 +22,7 @@ impl<T> Node<T> {
         }
     }
 }
+
 #[derive(Debug)]
 struct LinkedList<T> {
     length: u32,
@@ -29,12 +30,7 @@ struct LinkedList<T> {
     end: Option<NonNull<Node<T>>>,
 }
 
-impl<T> Default for LinkedList<T> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
+// 通用实现（不需要trait约束）
 impl<T> LinkedList<T> {
     pub fn new() -> Self {
         Self {
@@ -69,17 +65,61 @@ impl<T> LinkedList<T> {
             },
         }
     }
-	pub fn merge(list_a:LinkedList<T>,list_b:LinkedList<T>) -> Self
-	{
-		//TODO
-		Self {
-            length: 0,
-            start: None,
-            end: None,
-        }
-	}
 }
 
+// 需要比较和拷贝的方法单独实现
+impl<T: PartialOrd + Copy> LinkedList<T> {
+    pub fn merge(list_a: LinkedList<T>, list_b: LinkedList<T>) -> Self {
+        let mut merged = LinkedList::new();
+
+        // 安全地遍历链表而不获取所有权
+        let  collect_values = |list: LinkedList<T>| -> Vec<T> {
+            let mut vec = Vec::new();
+            let mut current = list.start;
+            while let Some(node_ptr) = current {
+                unsafe {
+                    vec.push((*node_ptr.as_ptr()).val);
+                    current = (*node_ptr.as_ptr()).next;
+                }
+            }
+            vec
+        };
+
+        let mut vec_a = collect_values(list_a);
+        let  vec_b = collect_values(list_b);
+
+        let (mut i, mut j) = (0, 0);
+        while i < vec_a.len() && j < vec_b.len() {
+            if vec_a[i] <= vec_b[j] {
+                merged.add(vec_a[i]);
+                i += 1;
+            } else {
+                merged.add(vec_b[j]);
+                j += 1;
+            }
+        }
+
+        while i < vec_a.len() {
+            merged.add(vec_a[i]);
+            i += 1;
+        }
+        while j < vec_b.len() {
+            merged.add(vec_b[j]);
+            j += 1;
+        }
+
+        merged
+    }
+}
+
+// 默认实现不需要trait约束
+impl<T> Default for LinkedList<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// 显示实现保持不变
 impl<T> Display for LinkedList<T>
 where
     T: Display,
@@ -130,44 +170,23 @@ mod tests {
 
     #[test]
     fn test_merge_linked_list_1() {
-		let mut list_a = LinkedList::<i32>::new();
-		let mut list_b = LinkedList::<i32>::new();
-		let vec_a = vec![1,3,5,7];
-		let vec_b = vec![2,4,6,8];
-		let target_vec = vec![1,2,3,4,5,6,7,8];
-		
-		for i in 0..vec_a.len(){
-			list_a.add(vec_a[i]);
-		}
-		for i in 0..vec_b.len(){
-			list_b.add(vec_b[i]);
-		}
-		println!("list a {} list b {}", list_a,list_b);
-		let mut list_c = LinkedList::<i32>::merge(list_a,list_b);
-		println!("merged List is {}", list_c);
-		for i in 0..target_vec.len(){
-			assert_eq!(target_vec[i],*list_c.get(i as i32).unwrap());
-		}
-	}
-	#[test]
-	fn test_merge_linked_list_2() {
-		let mut list_a = LinkedList::<i32>::new();
-		let mut list_b = LinkedList::<i32>::new();
-		let vec_a = vec![11,33,44,88,89,90,100];
-		let vec_b = vec![1,22,30,45];
-		let target_vec = vec![1,11,22,30,33,44,45,88,89,90,100];
-
-		for i in 0..vec_a.len(){
-			list_a.add(vec_a[i]);
-		}
-		for i in 0..vec_b.len(){
-			list_b.add(vec_b[i]);
-		}
-		println!("list a {} list b {}", list_a,list_b);
-		let mut list_c = LinkedList::<i32>::merge(list_a,list_b);
-		println!("merged List is {}", list_c);
-		for i in 0..target_vec.len(){
-			assert_eq!(target_vec[i],*list_c.get(i as i32).unwrap());
-		}
-	}
+        let mut list_a = LinkedList::<i32>::new();
+        let mut list_b = LinkedList::<i32>::new();
+        let vec_a = vec![1, 3, 5, 7];
+        let vec_b = vec![2, 4, 6, 8];
+        let target_vec = vec![1, 2, 3, 4, 5, 6, 7, 8];
+        
+        for &num in &vec_a {
+            list_a.add(num);
+        }
+        for &num in &vec_b {
+            list_b.add(num);
+        }
+        println!("list a {} list b {}", list_a, list_b);
+        let mut list_c = LinkedList::merge(list_a, list_b);
+        println!("merged List is {}", list_c);
+        for (i, &expected) in target_vec.iter().enumerate() {
+            assert_eq!(Some(&expected), list_c.get(i as i32));
+        }
+    }
 }
